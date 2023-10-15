@@ -34,52 +34,54 @@ class AgentManagement:
         uptime_seconds = current_time - self.start_timestamp
         return uptime_seconds
     
+    #função que inicializa o update da matriz, e obtem o N--udpate_count
     def StartMatrixUpdate(self):
-        matriz = MatrixZ(self.m, self.k)
+        #matriz = MatrixZ(self.m, self.k)
         while True:
-            matriz.UpdateMatrix()
+            self.matriz.UpdateMatrix()
             self.update_count += 1  # Incrementa o contador de atualizações
             #print(f"Matriz atualizada {self.update_count} vezes.")
             time.sleep(self.t / 1000)  # Aguarda o intervalo de atualização T (em segundos)
             time.sleep(5)
             #print(self.update_count)
             
-    def UDPServer(self):
+    #função que inicia o server udp, udp comm
+    def StartUDPServer(self):
         localIP     = "127.0.0.1"
-
         localPort   = 1234
 
         #cria o socket 
         UDPServerSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)  
+        #para permitir reutilização de portas
         UDPServerSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         UDPServerSocket.bind((localIP,localPort))
-        print("UDP server up and listening")
-
+        print("UDP listening")
 
         while True:
             data, client_address = UDPServerSocket.recvfrom(4096)
             print(f'Received data from {client_address}: {data.decode()}')
             
-            if(data.decode()== 'set1'):
+            if(data.decode()== 'set'):
                 print('primitiva set')
-                chave = self.matriz.GenerateKey(self.update_count)
-                print("Chave gerada:", chave)
                 print(self.update_count)
- 
-             # Execute o algoritmo de atualização da matriz Z
+                key = self.matriz.GenerateKey(self.update_count)
+                print("Generated Key:", key) 
+                #algoritmo de atualização da matriz Z, devido a isto " algoritmo anterior de atualização da matriz Z tem de ser executado antes de outros pedidos de geração de chave serem atendidos"
                 self.matriz.UpdateMatrix()
 
-                # Envie a chave de volta para o cliente
-                UDPServerSocket.sendto(chave, client_address)
-
-                # Send a response back to the client
-                response = 'Hello, client! Your message was received.'
+                #envia a chave de volta para o cliente, e vai enviar também o identificador D(mas ainda não sei,está no ponto vi)
+                UDPServerSocket.sendto(key, client_address)
+            else:
+                #envia mensagem de volta
+                response = 'your message was received and its not a set.'
                 UDPServerSocket.sendto(response.encode(), client_address)
 
+    #funnção de criação da thread
     def StartThreads(self):
+        #cria thread responsável pela atualização da matriz
         udp_server_thread = threading.Thread(target=self.StartUDPServer)
         matrix_update_thread = threading.Thread(target=self.StartMatrixUpdate)
-
+        #inicializa thread
         udp_server_thread.start()
         matrix_update_thread.start()
 
@@ -92,27 +94,6 @@ def main():
     #print(f'O agente está em execução há {uptime} segundos.')
     #configurations = agent.ReadConfigFile()
     #print("configuraçoes:", configurations)
-    udp_server_thread = threading.Thread(target=agent.StartUDPServer)
-    udp_server_thread.start()
-    #matriz = MatrixZ(agent.m, agent.k)
-
-
-    #print("------------------primeiro-------------------")
-    #for i in range(agent.k):
-        #print(matriz.z[i])
-
-    #atualiza a matriz z
-    #while True:
-       #matriz.UpdateMatrix()
-       #print("nova")
-       #for i in range(agent.k):
-            #print(matriz.z[i])
-
-        # aguarda o intervalo de atualização T (convertido de milissegundos para segundos),que está no ficheiro de config
-       #time.sleep(agent.t / 1000)
-       #time.sleep(5)
-       #break
-
-
+ 
 if __name__ == "__main__":
     main()

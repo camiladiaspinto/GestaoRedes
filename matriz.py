@@ -84,17 +84,24 @@ class MatrixZ:
             for i in range(self.k):
                 self.z[i][j] = rotated_column[i]
 
+      # função para gerar a chave com base na matriz Z e no número de atualizações
 
-   #def GenerateKey(self, N):
-   
+    def GenerateKey(self, N):
+        print(N)
+        array_i = N + self.z[0][0]
+        random.seed(array_i)
+        i = random.randint(0, self.k - 1)
 
-                ##matriz  interface , thread que invoque a interface e atualiza a matriz 
-                #parte snmp tem de ser estdudada,temos de ver isso agora 
-                
+        random.seed(self.z[i][0])  
+        j = random.randint(0, self.k - 1)
+
+        # Calcula a chave através da expressão C = xor(Zi*,transpose(Z*j))
+        key_i = self.za[i]
+        key_j = [self.z[m][j] for m in range(self.k)]
+        
+        # Calcula a chave usando XOR
+        key = [key_i[m] ^ key_j[m] for m in range(self.k)]
+        print(key)
+        return bytes(key)
 
 
-#To Do: 1- O gestor é que pede uma chave ao agente, por isso tem de se estabelecer a comunicação entre estes dois, sabendo que é UDP e que um 
-#gestor tem vários clientes. -- check 
-    #2- a primitiva set é recebida, o agente reconhece e gera a chave--check
-    #3- implementa-se algoritmo de geração de chave 
-    #PROBLEMA: O algoritmo de geração de chave, tem de saber o N, e o prof disse que temos de meter o processo de update desta matriz numa thread . -- check 
