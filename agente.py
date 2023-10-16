@@ -63,7 +63,7 @@ class AgentManagement:
             
             if(data.decode()== 'set'):
                 print('primitiva set')
-                print(self.update_count)
+                print(type(self.update_count))
                 key = self.matriz.GenerateKey(self.update_count)
                 print("Generated Key:", key) 
                 #algoritmo de atualização da matriz Z, devido a isto " algoritmo anterior de atualização da matriz Z tem de ser executado antes de outros pedidos de geração de chave serem atendidos"

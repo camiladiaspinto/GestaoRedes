@@ -57,8 +57,12 @@ class MatrixZ:
     def GenerateMatrixZ(self):
         for i in range(self.k):
             for j in range(self.k):
-                self.zc[i, j] = random.randint(int(self.za[i][j]), 255)
-                self.zd[i, j] = random.randint(int(self.zb[i][j]), 255)
+                array_c = self.za[i][j]
+                random.seed(array_c)
+                self.zc[i, j] = random.randint(0, 255)
+                array_d = self.zb[i][j]
+                random.seed(array_d)
+                self.zd[i, j] = random.randint(0, 255)
 
         z_result = [[0] * self.k for _ in range(self.k)]
 
@@ -74,12 +78,14 @@ class MatrixZ:
 
         #passo 1: faz o rotate de todas as linhas completas em relacao ao random em que o tamanho maximo é k-1
         for i in range(self.k):
+            random.seed(int(self.z[i][0]))
             self.z[i] = self.rotate(self.z[i], random.randint(0, self.k - 1))
         
 
         #passo 2: roda verticalmente n vezes (de cima para baixo)
         for j in range(self.k):
             column_j = [self.z[i][j] for i in range(self.k)]
+            random.seed(int(self.z[0][j]))
             rotated_column = self.rotate(column_j, random.randint(0, self.k - 1))
             for i in range(self.k):
                 self.z[i][j] = rotated_column[i]
@@ -88,11 +94,12 @@ class MatrixZ:
 
     def GenerateKey(self, N):
         print(N)
-        array_i = N + self.z[0][0]
+        array_i = int(N + self.z[0][0])
         random.seed(array_i)
         i = random.randint(0, self.k - 1)
 
-        random.seed(self.z[i][0])  
+        array_j = int(self.z[i][0])
+        random.seed(array_j)  
         j = random.randint(0, self.k - 1)
 
         # Calcula a chave através da expressão C = xor(Zi*,transpose(Z*j))
