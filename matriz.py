@@ -2,6 +2,9 @@ import time
 import random
 import numpy as np
 
+#jfperira: não verifiquei a coerencia do algoritmo de criação da matriz Z, para isso têm o enunciado
+#jfpereira: devem também olhar para isto python name convensions and private and public access
+# https://stackoverflow.com/questions/55525463/public-and-private-methods-in-python
 class MatrixZ:
     def __init__(self, m, k):
         self.m = m
@@ -11,6 +14,8 @@ class MatrixZ:
         self.zc = np.zeros((self.k, self.k), dtype=np.uint8)
         self.zd = np.zeros((self.k, self.k), dtype=np.uint8)
         self.z = self.GenerateMatrixZ()
+        # self.updateNcount - numero de vezes que a matriz foi atualizada
+        # respetivo método get
 
     #funcao da rotaçao
     def rotate(self, m, n):
@@ -74,6 +79,9 @@ class MatrixZ:
         return z_result
     
     #funcao para fazer update; T é o periodo e está no ficheiro de config
+    # jfpereira esta função deve estar protegida com locks, poes vamos ter multiplas threadds a acederem a ela
+    # https://www.geeksforgeeks.org/python-how-to-lock-critical-sections/
+    # atualizar o self.updateNcount
     def UpdateMatrix(self):
 
         #passo 1: faz o rotate de todas as linhas completas em relacao ao random em que o tamanho maximo é k-1
@@ -92,6 +100,9 @@ class MatrixZ:
 
       # função para gerar a chave com base na matriz Z e no número de atualizações
 
+    # jfpereira: deve returnar a chave e o ID da chave
+    # jfpereira esta função deve estar protegida com locks, pois vamos ter multiplas threads a acederem a ela
+    # https://www.geeksforgeeks.org/python-how-to-lock-critical-sections/
     def GenerateKey(self, N):
         print(N)
         array_i = int(N + self.z[0][0])

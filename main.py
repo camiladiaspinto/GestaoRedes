@@ -75,7 +75,8 @@ def StartUDPServer(port):
             print(type(update_count))
             key = matriz.GenerateKey(update_count)
             print("Generated Key:", key)
-            # jfpereira: não queremos chamar a função update aqui 
+            # jfpereira: não queremos chamar a função update aqui se o enunciado diz para o fazer sempre que geramos uma chave
+            # a função gerar chave é que chamará a função update
             matriz.UpdateMatrix()
             # jfpereira: o socket que recebemos não é o mesmo por onde enviamos
             UDPServerSocket.sendto(key, client_address)
