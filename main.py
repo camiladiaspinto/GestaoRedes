@@ -5,25 +5,23 @@ from matriz import MatrixZ
 import socket
 import threading
 
-# update_count é o número de vezes que a matriz já foi atualizada desde que o agente se iniciou
 # jfpereira: isto deve estar dentro da class matriz
-update_count = 0
 # matriz terá de ser global 
 #jfpereira: não queremos variáveis globais
-matriz = None
 
 #funcao que lê as configurações no ficheiro 
 def ReadConfigFile():
     try:
         with open('config.txt', 'r') as file:
             lines = file.readlines()
-            port = int(lines[0].strip())
-            m = lines[1].strip()
-            k = int(lines[2].strip())
-            t = int(lines[3].strip())
-            v = int(lines[4].strip())
-            x = int(lines[5].strip())
-        return port, m, k, t, v, x
+            ip = lines[0].strip() #passar o localhost como o stor pediu
+            port = int(lines[1].strip())
+            m = lines[2].strip()
+            k = int(lines[3].strip())
+            t = int(lines[4].strip()) / 1000 # põem tempo em ms 
+            v = int(lines[5].strip())
+            x = int(lines[6].strip())
+        return ip, port, m, k, t, v, x
     except FileNotFoundError:
         print('O ficheiro nao foi encontrado')
 
@@ -38,21 +36,19 @@ def GetTime(start_timestamp):
 # jfpereira: recebe t em ms e a matrizZ - mais um argumento para a matrizZ
 # jfpereira: nota - compreender como são os objetos passados para dentro das funções
 # jfpereira: https://realpython.com/python-pass-by-reference/ 
-def StartMatrixUpdate(t):
+def StartMatrixUpdate(t, matriz):
     #  jfpereira: não queremos isto aqui, a função recebe a matriz como argumento
-    global update_count, matriz # Acessa a variável global update_count e matriz
     while True:
         matriz.UpdateMatrix()
         # jfpereira: é um valor relativo ao objeto matriz(?) -> deve estar no obj matiz
-        update_count += 1  # Incrementa o contador de atualizações
-        time.sleep(t / 1000)  # Aguarda o intervalo de atualização T (em segundos)
-        time.sleep(5) # jfpereira: isto não devia estar aqui
+        time.sleep(t)  # Aguarda o intervalo de atualização T (em ms)
+        #time.sleep(5) # jfpereira: isto não devia estar aqui
 
 #função que inicia o server udp, udp comm
 # jfpereira: isto poda estar na main direto, não precisava de estar numa função
-def StartUDPServer(port):
+def StartUDPServer(port, ip, matriz):
     # jfpereira: isto deve ser lido do ficheiro de conf
-    localIP = "127.0.0.1"
+    localIP = ip
     localPort = port
     UDPServerSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
     UDPServerSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -72,12 +68,10 @@ def StartUDPServer(port):
         
         if(data.decode() == 'set'):
             print('primitiva set')
-            print(type(update_count))
-            key = matriz.GenerateKey(update_count)
-            print("Generated Key:", key)
+            key, key_id = matriz.GenerateKey()
+            print("Generated Key:", key, "ID:", key_id)
             # jfpereira: não queremos chamar a função update aqui se o enunciado diz para o fazer sempre que geramos uma chave
             # a função gerar chave é que chamará a função update
-            matriz.UpdateMatrix()
             # jfpereira: o socket que recebemos não é o mesmo por onde enviamos
             UDPServerSocket.sendto(key, client_address)
         else:
@@ -85,21 +79,18 @@ def StartUDPServer(port):
             UDPServerSocket.sendto(response.encode(), client_address)
 
 def main():
-    # NO GLOBAL 
-    global matriz
     #jfpereira:  read local IP
-    port, m, k, t, v, x = ReadConfigFile()
+    ip, port, m, k, t, v, x = ReadConfigFile()
     matriz = MatrixZ(m, k)
     start_timestamp = time.time()
-
+    print("N:",matriz.get_Ncount())
     #thread da matriz
     # jfpereira: matriz vai como argumento args(t, matriz)
-    StartMatrixUpdateThread = threading.Thread(target=StartMatrixUpdate, args=(t,))
+    StartMatrixUpdateThread = threading.Thread(target=StartMatrixUpdate, args=(t,matriz))
     StartMatrixUpdateThread.start()
 
 
-    StartUDPServer(port)  
-
+    StartUDPServer(port,ip,matriz)  
     # jfpereira: o programa nunca vai chegar aqui, a função StartUDPServer tem um while true...
     uptime = GetTime(start_timestamp) 
     print("O servidor demorou: ", uptime)
