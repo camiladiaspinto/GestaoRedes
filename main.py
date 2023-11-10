@@ -49,6 +49,14 @@ def StartUDPServer(port, ip, matriz):
 
     while True:
         data, client_address = UDPServerSocket.recvfrom(4096)
+        #client_thread = threading.Thread(target=handle_client_request, args=(data, client_address, matriz, UDPServerSocket))
+        #client_thread.start()
+        # https://cppsecrets.com/users/110711510497115104971101075756514864103109971051084699111109/Python-UDP-Server-with-Multiple-Clients.php
+        # codigo não funcional, é só um esboço
+        # c_thread = threading.Thread(target = self.handle_request, args = (data, client_address, matrizZ, MIB))
+        # c_thread.daemon = True
+        # c_thread.start()
+        # a função handle_request terá todo o código para tratar dos pedidos
            
         # Obter o IP e a porta de origem do cliente
         client_ip, client_port = client_address
@@ -64,20 +72,22 @@ def StartUDPServer(port, ip, matriz):
         print(S)
         NS = str(parsed_data[1])
         print(NS)
-        Y = str(parsed_data[2])
+        Q=str(parsed_data[2])
+        print(Q)
+        Y = str(parsed_data[3])
         print(Y)
-        P = str(parsed_data[3])
+        P = str(parsed_data[4])
         print(P)
-        NW = str(parsed_data[4])
+        NW = str(parsed_data[5])
         print(NW)
-        NR = str(parsed_data[5])
+        NR = str(parsed_data[6])
         print(NR)
         #separa os dados da lista pelos pares 
-        W_data = parsed_data[6].split(';')
+        W_data = parsed_data[7].split(';')
         #volta a formar uma tupla de pares 
         W = [(pair.split(',')[0], pair.split(',')[1]) for pair in W_data]
         print(W)
-        R_data = parsed_data[7].split(';')
+        R_data = parsed_data[8].split(';')
         R = [(pair.split(',')[0], pair.split(',')[1]) for pair in R_data]
         print(R)
 
@@ -90,18 +100,44 @@ def StartUDPServer(port, ip, matriz):
 #NOTA: para implementar o que o prof pediu de uma thread por pedido, esta função ficaria assim:
   #while True:
    #     data, client_address = UDPServerSocket.recvfrom(4096)
-        # Inicia um novo thread para lidar com a solicitação do cliente
      #   client_thread = threading.Thread(target=handle_client_request, args=(data, client_address, matriz, UDPServerSocket))
       #  client_thread.start()
 
 #def handle_client_request(data, client_address, matriz, UDPServerSocket):
-    # client_ip, client_port = client_address
+    #client_ip, client_port = client_address
     #print('Cliente IP:', client_ip)
-   # print('Cliente Porta:', client_port)
+    #print('Cliente Porta:', client_port)
     # Tratamento dos dados(copy e paste do que esta na startupd server)
+    #Separa os dados pela terminação '\0' e descodifica os bytes
+    #parsed_data = data.decode().split('\0')
+    #print(parsed_data)
+
+    #acede ás posições dos dados
+    #S = parsed_data[0]
+    #print(S)
+    #NS = str(parsed_data[1])
+    #print(NS)
+    #Y = str(parsed_data[2])
+    #print(Y)
+    #P = str(parsed_data[3])
+    #print(P)
+    #NW = str(parsed_data[4])
+    #print(NW)
+    #NR = str(parsed_data[5])
+    #print(NR)
+    #separa os dados da lista pelos pares 
+    #W_data = parsed_data[6].split(';')
+    #volta a formar uma tupla de pares 
+    #W = [(pair.split(',')[0], pair.split(',')[1]) for pair in W_data]
+    #print(W)
+    #R_data = parsed_data[7].split(';')
+    #R = [(pair.split(',')[0], pair.split(',')[1]) for pair in R_data]
+    #print(R)
+
     #if int(Y) == 2:
      #   handle_set_primitive(data, client_address, matriz, UDPServerSocket)
     #else:
+     #   print('outras primitivas')
         #outras primitivas 
 
 

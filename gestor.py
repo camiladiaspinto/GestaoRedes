@@ -11,7 +11,8 @@ client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 # Obtém os valores da PDU a partir dos argumentos da linha de comando e converte para inteiros para ser mais fácil tratar dos dados
 S = 0 #mecanismo de segurança que é zero 
 NS = 0
-P = random.randint(1,100)  #identificação do pedido 
+Q=0
+P = random.randint(1,100)  #identificação do pedido . vai ter de ser mduado para ficheiro 
 Y = int(sys.argv[1]) #identidicaçaõ da primitiva 
 
 #Falta isot: não é permitido que durante V segundos o gestor identifique outro pedido com o mesmo I-ID, duvida 
@@ -47,6 +48,7 @@ else:
 
 s_data=str(S) + '\0'
 ns_data=str(NS) + '\0'
+q_data=str(Q) +'\0'
 y_data=str(Y) + '\0'
 p_data=str(P) + '\0'
 nw_data=str(NW) + '\0'
@@ -61,24 +63,27 @@ R_bytes = R_str.encode('utf-8')
 #concatena as strings e tranforma em bytes 
 
 x_data='\0'
-bytes= s_data.encode('utf-8')+ns_data.encode('utf-8')+y_data.encode('utf-8')+p_data.encode('utf-8')+nw_data.encode('utf-8')+nr_data.encode('utf-8')+W_bytes+x_data.encode('utf-8')+R_bytes
+bytes= s_data.encode('utf-8')+ns_data.encode('utf-8')+q_data.encode('utf-8')+y_data.encode('utf-8')+p_data.encode('utf-8')+nw_data.encode('utf-8')+nr_data.encode('utf-8')+W_bytes+x_data.encode('utf-8')+R_bytes
 print(bytes)
 
 
-#para função de teste antes de implementar isto: # jfpereira: mais tarde será algo deste tipo (temos de ter uma thread por pedido recebido)
-        # https://cppsecrets.com/users/110711510497115104971101075756514864103109971051084699111109/Python-UDP-Server-with-Multiple-Clients.php
-        # codigo não funcional, é só um esboço
-        # c_thread = threading.Thread(target = self.handle_request, args = (data, client_address, matrizZ, MIB))
-        # c_thread.daemon = True
-        # c_thread.start()
-        # a função handle_request terá todo o código para tratar dos pedidos
 
 server_address = (ip, port)
-num_requests = 10  
+client_socket.sendto(bytes, server_address)
+response, _ = client_socket.recvfrom(4096)
+print('Received response from server:', response)
+#num_requests = 1 
 
-for _ in range(num_requests):
-    client_socket.sendto(bytes, server_address)
-    response, _ = client_socket.recvfrom(4096)
-    print('Received response from server:', response)
+#for _ in range(num_requests):
+ #   client_socket.sendto(bytes, server_address)
+    #response, _ = client_socket.recvfrom(4096)
+    #print('Received response from server:', response)
 
 client_socket.close()
+
+#Problema: 
+#Resolver situação do id do pedido: deixa de ser random e gajo arranca verifica se tem um fichero com o ultimo P, se nao tiver faz um random e guarda lá e dpois para fazer o pediro vai ao ficheiro, lê um id e incrementa 
+
+#Trabalho futur(EDU):
+#Constuir a MIB
+#Tratar de guardar o key e a key id 
