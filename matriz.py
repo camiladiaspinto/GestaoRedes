@@ -2,6 +2,7 @@ import time
 import random
 import numpy as np
 import threading
+from datetime import datetime
 
 #jfperira: não verifiquei a coerencia do algoritmo de criação da matriz Z, para isso têm o enunciado
 #jfpereira: devem também olhar para isto python name convensions and private and public access
@@ -15,12 +16,21 @@ class MatrixZ:
         self.zc = np.zeros((self.k, self.k), dtype=np.uint8)
         self.zd = np.zeros((self.k, self.k), dtype=np.uint8)
         self.z = self.GenerateMatrixZ()
+        self.creation_time = datetime.now()  # Adiciona o tempo de criação da matriz
         self.updateNcount = 0 # numero de vezes que a matriz foi atualizada
         self.lock = threading.Lock()
     
     # método get Ncount
     def get_Ncount(self):
         return self.updateNcount
+
+    #Método que retorna a data da criação da matriz Z
+    def get_creation_date(self):
+        return self.creation_time.strftime("%y%m%d")  #YY*104+MM*102+DD
+
+    #Método que retorna a hora da criação da matriz Z
+    def get_creation_time(self):
+        return self.creation_time.strftime("%H%M%S")  #HH*104+MM*102+SS
 
     #funcao da rotaçao
     def rotate(self, m, n):
