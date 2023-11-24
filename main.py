@@ -80,21 +80,103 @@ def StartMatrixUpdate(t, matriz):
         matriz.UpdateMatrix()
         time.sleep(t)  # Aguarda o intervalo de atualização T (em ms)
 
-
-def handle_set_primitiva(parsed_data):
+def handle_set_primitiva(parsed_data,matriz,mib,client_ip,client_port):
     NW = str(parsed_data[5])
     W_data = parsed_data[7].split(';')
         #volta a formar uma tupla de pares 
     W = [(pair.split(',')[0], pair.split(',')[1]) for pair in W_data]
+    key, key_id_aux = matriz.GenerateKey()
+    key_id = matriz.get_Ncount()
+    entrada_tabela_keys(mib, key_id, key, client_ip, client_port, "22222222", "1111111", 2)
+    response = f"Generated Key: {key}, ID: {key_id}"
+    return response
 
-def handle_get_primitiva(parsed_data):
+def handle_get_primitiva(parsed_data,mib):
+    response = {}
     NL = str(parsed_data[5])
     print(NL)
     L_data = parsed_data[7].split(';')
         #volta a formar uma tupla de pares 
     L = [(pair.split(',')[0], pair.split(',')[1]) for pair in L_data]
     print(L)
-    return NL, L
+    for i in range(int(NL)):
+        L_i = L[i]
+        L_iid = L_i[0]
+        L_lexiograficamente = int(L_i[1])
+        
+        # Para o caso de ser o system ou o config
+        if len(L_iid) == 5:
+            # Obter a entrada inicial
+            results = {}
+            response_entry = mib.get_entry_by_iid(L_iid)
+            print(response_entry)
+
+            # Adicionar à resposta, adaptando conforme necessário
+            results[L_iid] = response_entry
+
+            # Imprimir X entradas seguintes
+            next_entries = mib.get_all_keys()
+
+            # Encontrar a posição da entrada inicial
+            start_index = next_entries.index(L_iid)
+
+            # Iterar sobre as entradas seguintes e incluí-las na resposta
+            for entry_key in next_entries[start_index + 1:start_index + 1 + L_lexiograficamente]:
+                if entry_key.startswith("0.3.2.1."):
+                    sublist = mib.get_entry_by_iid(entry_key)
+
+                    # Itera sobre as sub-listas e adiciona à resposta
+                    for sub_entry in sublist:
+                        results[sub_entry[0]] = sub_entry[1:]
+                        
+                else: 
+                    entry_value = mib.get_entry_by_iid(entry_key)
+                    print(f"Chave: {entry_key}, Lista: {entry_value}")
+                    results[entry_key] = entry_value
+
+            #print(results)
+            response = {key_id: results[key_id] for key_id in list(results)[:L_lexiograficamente+1]}
+                
+        elif len(L_iid) == 9:  #exemplo 0.3.2.1.0.3 (o ultimo numero é a key id)
+            response = mib.get_entry_by_iid(L_iid)
+            print(response)
+        elif len(L_iid) == 11:
+            L_iid_aux = L_iid[:9]
+            #print(L_iid_aux)
+            lista = mib.get_entry_by_iid(L_iid_aux)
+            #print(lista)
+            results = {}
+
+            # Imprimir X entradas seguintes
+            next_entries = mib.get_all_keys()
+            
+            # Encontrar a posição da entrada inicial
+            L_iid_teste = next_entries.index(L_iid_aux)
+            for entry_key in next_entries[L_iid_teste:]:
+                sublist = mib.get_entry_by_iid(entry_key)
+                for sub_entry in sublist:
+                        results[sub_entry[0]] = sub_entry[1:]
+
+            #print(results)
+            start_adding = False
+
+            for entry_key, value in results.items():
+                if entry_key == L_iid:
+                    start_adding = True
+                if start_adding:
+                    response[entry_key] = value
+            
+            print(response)
+            response_keys = list(response.keys())[:L_lexiograficamente]
+            response = {key: response[key] for key in response_keys}
+            
+        #Verifica se a chave existe na mib
+        if response is not None:
+            response_str = json.dumps(response, default=bytes_to_hex_string)
+        else:
+            response_str = "Não existe essa chave"
+
+    return response_str
 
 def bytes_to_hex_string(byte_data):
     return byte_data.hex() if isinstance(byte_data, bytes) else byte_data
@@ -136,96 +218,11 @@ def handle_client(data,client_address,matriz,mib, UDPServerSocket):
 
         if int(Y)==1:
             response = {} 
-            i = 0
-            NL, L = handle_get_primitiva(parsed_data)
-            for i in range(int(NL)):
-                L_i = L[i]
-                L_iid = L_i[0]
-                L_lexiograficamente = int(L_i[1])
-                
-                # Para o caso de ser o system ou o config
-                if len(L_iid) == 5:
-                    # Obter a entrada inicial
-                    results = {}
-                    response_entry = mib.get_entry_by_iid(L_iid)
-                    print(response_entry)
-
-                    # Adicionar à resposta, adaptando conforme necessário
-                    results[L_iid] = response_entry
-
-                    # Imprimir X entradas seguintes
-                    next_entries = mib.get_all_keys()
-
-                    # Encontrar a posição da entrada inicial
-                    start_index = next_entries.index(L_iid)
-
-                    # Iterar sobre as entradas seguintes e incluí-las na resposta
-                    for entry_key in next_entries[start_index + 1:start_index + 1 + L_lexiograficamente]:
-                        if entry_key.startswith("0.3.2.1."):
-                            sublist = mib.get_entry_by_iid(entry_key)
-
-                            # Itera sobre as sub-listas e adiciona à resposta
-                            for sub_entry in sublist:
-                                results[sub_entry[0]] = sub_entry[1:]
-                                
-                        else: 
-                            entry_value = mib.get_entry_by_iid(entry_key)
-                            print(f"Chave: {entry_key}, Lista: {entry_value}")
-                            results[entry_key] = entry_value
-
-                    #print(results)
-                    response = {key_id: results[key_id] for key_id in list(results)[:L_lexiograficamente+1]}
-                        
-                elif len(L_iid) == 9:  #exemplo 0.3.2.1.0.3 (o ultimo numero é a key id)
-                    response = mib.get_entry_by_iid(L_iid)
-                    print(response)
-                elif len(L_iid) == 11:
-                    L_iid_aux = L_iid[:9]
-                    #print(L_iid_aux)
-                    lista = mib.get_entry_by_iid(L_iid_aux)
-                    #print(lista)
-                    results = {}
-
-                    # Imprimir X entradas seguintes
-                    next_entries = mib.get_all_keys()
-                    
-                    # Encontrar a posição da entrada inicial
-                    L_iid_teste = next_entries.index(L_iid_aux)
-                    for entry_key in next_entries[L_iid_teste:]:
-                        sublist = mib.get_entry_by_iid(entry_key)
-                        for sub_entry in sublist:
-                                results[sub_entry[0]] = sub_entry[1:]
-
-                    #print(results)
-                    start_adding = False
-
-                    for entry_key, value in results.items():
-                        if entry_key == L_iid:
-                            start_adding = True
-                        if start_adding:
-                            response[entry_key] = value
-                   
-                    print(response)
-                    response_keys = list(response.keys())[:L_lexiograficamente]
-                    response = {key: response[key] for key in response_keys}
-
-                    #print(response)
-                            
-                #Verifica se a chave existe na mib
-                if response is not None:
-                    response_str = json.dumps(response, default=bytes_to_hex_string)
-                else:
-                    response_str = "Não existe essa chave"
-
-                UDPServerSocket.sendto(response_str.encode(), client_address)
-
+            response = handle_get_primitiva(parsed_data,mib) 
+            UDPServerSocket.sendto(response.encode(), client_address)
 
         elif int(Y) == 2:
-            handle_set_primitiva(parsed_data)
-            key, key_id_aux = matriz.GenerateKey()
-            key_id = matriz.get_Ncount()
-            entrada_tabela_keys(mib, key_id, key, client_ip, client_port, "22222222", "1111111", 2)
-            response = f"Generated Key: {key}, ID: {key_id}"
+            response = handle_set_primitiva(parsed_data,matriz,mib,client_ip,client_port)
             UDPServerSocket.sendto(response.encode(), client_address)
             print(mib.get_mib())
         
