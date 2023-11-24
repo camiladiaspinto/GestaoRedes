@@ -14,5 +14,11 @@ class MIB:
     #metodo para ter a lista de um iid especifico 
     def get_entry_by_iid(self, iid):
         return self.snmpKeysMib.get(iid, None)
+    
+    def get_all_keys(self):
+        all_keys = []
+        for key in self.snmpKeysMib.keys():
+            all_keys.append(key)
+        return all_keys
 
     
