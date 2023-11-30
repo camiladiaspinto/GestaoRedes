@@ -291,7 +291,7 @@ def handle_client(data,client_address,matriz,mib,v,x,UDPServerSocket):
         # Verifica se o pedido é válido
             
             P, last_P_timestamp = get_last_P('last_P.txt')
-            V = ReadConfigFile()[5]  # Obtém o valor de V do arquivo de configuração
+            V = ReadConfigFile()[5]  
             print(V)
             print(P)
 
