@@ -20,5 +20,12 @@ class MIB:
         for key in self.snmpKeysMib.keys():
             all_keys.append(key)
         return all_keys
+    
+    def update_iid_entry(self, iid, new_values):
+        if iid in self.snmpKeysMib:
+            self.snmpKeysMib[iid] = new_values
 
+    def remove_entry_by_key_id(self, key_id):
+        if key_id in self.snmpKeysMib:
+            del self.snmpKeysMib[key_id]
     

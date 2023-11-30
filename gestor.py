@@ -15,7 +15,7 @@ NS = 0
 Q = 0
 Y = int(sys.argv[1])  # identificação da primitiva
 V = 10
-
+"""
 # verifica se o arquivo existe e lê o valor nele, senão cria e começa do zero o p e o timestamp (v segundos)
 if os.path.exists(filename):
     with open(filename, 'r') as file:
@@ -26,7 +26,7 @@ else:
     #se nao existir, cria
     with open(filename, 'w') as file:
         file.write(f"{P} {last_P_timestamp}")
-
+"""
 N = int(sys.argv[2])  # quantidade de pares
 NR = int(sys.argv[3])  # quantidade de pares de erros
 
@@ -53,27 +53,27 @@ for i in range(4 + N, 4 + N + NR):
     instancia = str(pair[0])
     erro = str(pair[1])
     R.append((instancia, erro))
-
+"""
 current_time = time.time()
 if P == float(open(filename).read().split()[0]):
     # Verifica se o intervalo de tempo entre os pedidos é menor que V segundos
     if current_time - last_P_timestamp < V:
         print(f"Erro: Não é permitido identificar outro pedido com o mesmo I-ID durante {V} segundos.")
         sys.exit(1)
-
+"""
 s_data = str(S) + '\0'
 ns_data = str(NS) + '\0'
 q_data = str(Q) + '\0'
 y_data = str(Y) + '\0'
 
-last_P_timestamp = current_time
+"""last_P_timestamp = current_time
 
 # Incrementa o valor de P para o próximo pedido e escreve no ficheiro, com o timestamp
 P += 1
 with open(filename, 'w') as file:
-    file.write(f"{P} {last_P_timestamp}")
+    file.write(f"{P} {last_P_timestamp}")"""
 
-p_data = str(P) + '\0'
+#p_data = str(P) + '\0'
 n_data = str(N) + '\0'
 nr_data = str(NR) + '\0'
 
@@ -86,13 +86,14 @@ R_bytes = R_str.encode('utf-8')
 # concatena as strings e transforma em bytes
 x_data = '\0'
 bytes = s_data.encode('utf-8') + ns_data.encode('utf-8') + q_data.encode('utf-8') + y_data.encode(
-    'utf-8') + p_data.encode('utf-8') + n_data.encode('utf-8') + nr_data.encode('utf-8') + W_bytes + x_data.encode(
+    'utf-8') + n_data.encode('utf-8') + nr_data.encode('utf-8') + W_bytes + x_data.encode(
     'utf-8') + R_bytes
 print(bytes)
 
 server_address = (ip, port)
 client_socket.sendto(bytes, server_address)
 response, _ = client_socket.recvfrom(4096)
-print('Received response from server:', response)
+decoded_response = response.decode('utf-8')
+print('Received response from server:', decoded_response)
 
 client_socket.close()
