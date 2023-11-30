@@ -137,4 +137,4 @@ class MatrixZ:
             # Calcula a chave usando XOR
             key = [key_i[m] ^ key_j[m] for m in range(self.k)]
             print(key)
-            return bytes(key), (i,j)
+            return (key), (i,j)
