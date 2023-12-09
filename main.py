@@ -10,7 +10,6 @@ import os
 import json
 from datetime import datetime, timedelta
 
-p_lock = threading.Lock()
 mib_lock = threading.Lock()
 
 #funcao que lê as configurações no ficheiro 
@@ -29,7 +28,7 @@ def ReadConfigFile():
     except FileNotFoundError:
         print('O ficheiro nao foi encontrado')
 
-#funcao para remover as chaves quando for o tempo delas
+#funcao para remover as chaves quando expirar o tempo delas, verifica por todas as chaves na mib
 def remove_expired_keys(mib):
     current_date_time = datetime.now()
 
@@ -37,28 +36,26 @@ def remove_expired_keys(mib):
         for key_id in mib.get_all_keys():
             if key_id.startswith("0.3.2.1."):
                 sublist = mib.get_entry_by_iid(key_id)
-                print("sublist", sublist)
                 for sub_entry in sublist:
                     if sub_entry[1] == 'keyExpirationDate':
                         expiration_date = sub_entry[2]
                         print("date:", expiration_date)
                     if sub_entry[1] == 'keyExpirationTime':
                         expiration_time = sub_entry[2]
-                        print("time: ", expiration_time)
 
                 if expiration_date and expiration_time:
                     try:
                         expiration_date_time = datetime.strptime(expiration_date + expiration_time, "%y%m%d%H%M%S")
-                        print("expiration:", expiration_date_time)
-                        print("current: ", current_date_time)
                         if current_date_time > expiration_date_time:
                             # A chave expirou, remover da MIB
                             mib.remove_entry_by_key_id(key_id)
+                            lista = mib.get_entry_by_iid('0.3.1')
+                            valor_novo = lista[1] - 1
+                            lista[1] = valor_novo
+                            mib.update_iid_entry('0.3.1', lista)
                             print(f"Chave {key_id} removida da MIB.")
                     except ValueError as e:
                         print(f"Erro ao converter data e hora: {e}")
-
-
 
 #função de entrada na tabela a keys, não é necessario haver prevalencia de dados, quando o servidor desliga os dados vão embora
 def entrada_tabela_keys(mib, key_id, key_value, ip, port, date, hora, visibility):
@@ -101,8 +98,7 @@ def entradas_mib(mib,matriz,k,t,v,x,m):
     mib.add_iid_entry("0.2.3", ["configCardinalityOfKeysAlphabet", str(94), "read-write", "current", "The number of characters (Y) in the alphabet used in the keys."])
     mib.add_iid_entry("0.3.1", ["dataNumberOfValidKeys", 0, "read-only", "current", "The number of elements in the dataTableGeneratedKeys."])
 
-#funcao do tempo
-# mais tarde o tempo de uptime será guardado na MIB
+#funcao do tempo, mais tarde o tempo de uptime será guardado na MIB
 def GetTime(start_timestamp):
     current_time = time.time()
     uptime_seconds = current_time - start_timestamp
@@ -115,9 +111,12 @@ def StartMatrixUpdate(t, matriz):
         matriz.UpdateMatrix()
         time.sleep(t)  # Aguarda o intervalo de atualização T (em ms)
 
+#funcao da primitiva set, ou seja, para gerar uma chave e o seu id, e grava a chave na mib
 def handle_set_primitiva(parsed_data,matriz,mib,client_ip,client_port,v,x):
-    NW = str(parsed_data[5])
-    W_data = parsed_data[6].split(';')
+    NW = str(parsed_data[4])
+    print("nw:", NW)
+    W_data = parsed_data[5].split(';')
+    print("w_data", W_data)
         #volta a formar uma tupla de pares 
     W = [(pair.split(',')[0], pair.split(',')[1]) for pair in W_data]
     error_list = []
@@ -146,12 +145,14 @@ def handle_set_primitiva(parsed_data,matriz,mib,client_ip,client_port,v,x):
 
     return response, error_list
 
+#funcao da primitiva get, isto é, procura na mib o iid pedido e envia o iid pedido + as instancias lexicograficamente a seguir
 def handle_get_primitiva(parsed_data,mib):
-    response = {}
+    response_str = []
     error_list = []
-    NL = str(parsed_data[5])
+    response = {}
+    NL = str(parsed_data[4])
     print(NL)
-    L_data = parsed_data[7].split(';')
+    L_data = parsed_data[5].split(';')
         #volta a formar uma tupla de pares 
     L = [(pair.split(',')[0], pair.split(',')[1]) for pair in L_data]
     print(L)
@@ -159,124 +160,118 @@ def handle_get_primitiva(parsed_data,mib):
         L_i = L[i]
         L_iid = L_i[0]
         L_lexiograficamente = int(L_i[1])
-        
-        # Para o caso de ser o system ou o config
-        if len(L_iid) == 5:
-            # Obter a entrada inicial
-            results = {}
-            response_entry = mib.get_entry_by_iid(L_iid)
-            print(response_entry)
+        try:
+            # Para o caso de ser o system ou o config
+            if len(L_iid) == 5:
+                # Obter a entrada inicial
+                results = {}
+                response_entry = mib.get_entry_by_iid(L_iid)
+                print(response_entry)
 
-            # Adicionar à resposta, adaptando conforme necessário
-            results[L_iid] = response_entry
+                # Adicionar à resposta, adaptando conforme necessário
+                results[L_iid] = response_entry
 
-            # Imprimir X entradas seguintes
-            next_entries = mib.get_all_keys()
+                # Imprimir X entradas seguintes
+                next_entries = mib.get_all_keys()
 
-            # Encontrar a posição da entrada inicial
-            start_index = next_entries.index(L_iid)
+                # Encontrar a posição da entrada inicial
+                start_index = next_entries.index(L_iid)
 
-            # Iterar sobre as entradas seguintes e incluí-las na resposta
-            for entry_key in next_entries[start_index + 1:start_index + 1 + L_lexiograficamente]:
-                if entry_key.startswith("0.3.2.1."):
+                # Iterar sobre as entradas seguintes e incluí-las na resposta
+                for entry_key in next_entries[start_index + 1:start_index + 1 + L_lexiograficamente]:
+                    if entry_key.startswith("0.3.2.1."):
+                        sublist = mib.get_entry_by_iid(entry_key)
+
+                        # Itera sobre as sub-listas e adiciona à resposta
+                        for sub_entry in sublist:
+                            results[sub_entry[0]] = sub_entry[1:]
+                            
+                    else: 
+                        entry_value = mib.get_entry_by_iid(entry_key)
+                        print(f"Chave: {entry_key}, Lista: {entry_value}")
+                        results[entry_key] = entry_value
+
+                for key, value in results.items():
+                    results[key] = bytes_to_hex_string(value)
+                #print(results)
+                response = {key_id: results[key_id] for key_id in list(results)[:L_lexiograficamente+1]}
+                    
+            elif len(L_iid) == 9:  #exemplo 0.3.2.1.0.3 (o ultimo numero é a key id)
+                response = mib.get_entry_by_iid(L_iid)
+                print(response)
+            elif len(L_iid) == 11 or len(L_iid) == 12:
+                L_iid_aux = L_iid[:-2]
+                #print(L_iid_aux)
+                lista = mib.get_entry_by_iid(L_iid_aux)
+                #print(lista)
+                results = {}
+
+                # Imprimir X entradas seguintes
+                next_entries = mib.get_all_keys()
+                
+                # Encontrar a posição da entrada inicial
+                L_iid_teste = next_entries.index(L_iid_aux)
+                for entry_key in next_entries[L_iid_teste:]:
                     sublist = mib.get_entry_by_iid(entry_key)
-
-                    # Itera sobre as sub-listas e adiciona à resposta
                     for sub_entry in sublist:
                         results[sub_entry[0]] = sub_entry[1:]
-                        
-                else: 
-                    entry_value = mib.get_entry_by_iid(entry_key)
-                    print(f"Chave: {entry_key}, Lista: {entry_value}")
-                    results[entry_key] = entry_value
 
-            #print(results)
-            response = {key_id: results[key_id] for key_id in list(results)[:L_lexiograficamente+1]}
+                #print(results)
+                start_adding = False
+
+                for entry_key, value in results.items():
+                    if entry_key == L_iid:
+                        start_adding = True
+                    if start_adding:
+                        results[entry_key] = value
+                        #results[entry_key] = bytes_to_hex_string(value)
+                #print("teste",results)
+                #print(response)
+                for key, value in results.items():
+                    results[key] = bytes_to_hex_string(value)
+
+                response = {key_id: results[key_id] for key_id in list(results)[:L_lexiograficamente+1]}
+               
+            #print(response)
                 
-        elif len(L_iid) == 9:  #exemplo 0.3.2.1.0.3 (o ultimo numero é a key id)
-            response = mib.get_entry_by_iid(L_iid)
-            print(response)
-        elif len(L_iid) == 11 or len(L_iid) == 12:
-            L_iid_aux = L_iid[:-2]
-            #print(L_iid_aux)
-            lista = mib.get_entry_by_iid(L_iid_aux)
-            #print(lista)
-            results = {}
-
-            # Imprimir X entradas seguintes
-            next_entries = mib.get_all_keys()
-            
-            # Encontrar a posição da entrada inicial
-            L_iid_teste = next_entries.index(L_iid_aux)
-            for entry_key in next_entries[L_iid_teste:]:
-                sublist = mib.get_entry_by_iid(entry_key)
-                for sub_entry in sublist:
-                    results[sub_entry[0]] = sub_entry[1:]
-
-            #print(results)
-            start_adding = False
-
-            for entry_key, value in results.items():
-                if entry_key == L_iid:
-                    start_adding = True
-                if start_adding:
-                    response[entry_key] = value
-            
-            print(response)
-            response_keys = list(response.keys())[:L_lexiograficamente]
-            response = {key: response[key] for key in response_keys}
-            
-        #Verifica se a chave existe na mib
-        if response is not None:
-            response_str = json.dumps(response, default=bytes_to_hex_string)
-            error_list = ""
-        else:
+            #Verifica se a chave existe na mib
+            if response is not None:
+                response_str = [(key, value) for key, value in response.items()]
+                if(len(response_str) < L_lexiograficamente):
+                    error_list.append("[Erro]: Nao ha chaves suficientes para completar o numero instancias lexicograficamente a seguir.")
+                else:
+                    error_list = ""
+                print("Tamanho:", len(response_str))
+            else:
+                error_list.append("[Erro]: Chave nao existe")
+                response_str = "Sem chaves"
+        except ValueError:
             error_list.append("[Erro]: Chave nao existe")
-            response_str = ""
+            response_str = "Sem chaves"
 
     return response_str, error_list
 
+#converta bytes em hexadecimal
 def bytes_to_hex_string(byte_data):
+    if isinstance(byte_data, (list, dict)):
+        return str(byte_data)
+
+    if isinstance(byte_data, np.int64):
+        return int(byte_data)
+
     return byte_data.hex() if isinstance(byte_data, bytes) else byte_data
 
-def get_last_P(filename='last_P.txt'):
-    with p_lock:
-        if os.path.exists(filename):
-            with open(filename, 'r') as file:
-                P, last_P_timestamp = map(float, file.read().split())
-        else:
-            P = 0
-            last_P_timestamp = 0
-            with open(filename, 'w') as file:
-                file.write(f"{P} {last_P_timestamp}")
-        return P, last_P_timestamp
-
-def update_last_P(P, filename='last_P.txt'):
-    with p_lock:
-        current_time = time.time()
-        with open(filename, 'w') as file:
-            file.write(f"{P} {current_time}")
-
-def is_valid_request(P, V, last_P_timestamp,current_time):
-    with p_lock:
-        #current_time = time.time()
-        print(f"Current Time: {current_time}, Last P Timestamp: {last_P_timestamp}")
-        if current_time - last_P_timestamp < V:
-            print(f"[Error]: Not allowed to identify another request with the same I-ID for {V} seconds.")
-            return False
-        return True
-
+#funcao para manipular os dados recebidos do cliente, e enviar as respostas aos respetivos clientes
 def handle_client(data,client_address,matriz,mib,v,x,UDPServerSocket):
         print(f"Thread para cliente {client_address} iniciada.")
         client_ip, client_port = client_address
-        # Obter o IP e a porta de origem do cliente
+        #Obter o IP e a porta de origem do cliente
         print('O clinte IP é:',client_ip)
         print('A porta do cliente é:',client_port)
 
         #Separa os dados pela terminação '\0' e descodifica os bytes
         parsed_data = data.decode().split('\0')
-        current_time = time.time()
-        #print(parsed_data)
+        print("teste:", parsed_data)
 
        #acede ás posições dos dados
         S = parsed_data[0]
@@ -287,47 +282,25 @@ def handle_client(data,client_address,matriz,mib,v,x,UDPServerSocket):
         print(Q)
         Y = str(parsed_data[3])
         print(Y)
-        try:
-        # Verifica se o pedido é válido
-            
-            P, last_P_timestamp = get_last_P('last_P.txt')
-            V = ReadConfigFile()[5]  # Obtém o valor de V do arquivo de configuração
-            print(V)
-            print(P)
 
-            if not is_valid_request(P, V, last_P_timestamp,current_time):
-                error_message = "[Erro]: Pedido inválido. Aguarde alguns segundos e tente novamente."
-                UDPServerSocket.sendto(error_message.encode(), client_address)
-                print(f"Erro: Pedido inválido para o cliente {client_address}.")
-                return
-        except Exception as e:
-            print(f"Erro ao verificar a validade do pedido: {str(e)}")
-            return
-
-        # Incrementa P e atualiza o timestamp antes de chamar update_last_P
-        P += 1
-        update_last_P(P)
-
+        #remove as chaves sempre antes de efetuar as primitivas
         remove_expired_keys(mib)
 
+        #primitiva get
         if int(Y)==1:
             print(mib.get_mib())
-            response = {} 
+            response = []
             response, error_list = handle_get_primitiva(parsed_data,mib) 
-            if not error_list:
-                UDPServerSocket.sendto(response.encode('utf-8'), client_address)
-            else:
-                error_message = "\n".join(error_list)
-                UDPServerSocket.sendto(error_message.encode('utf-8'), client_address)
-
+            response_str = json.dumps(response)
+            error_message = "\n".join(error_list) if error_list else "[O erros]"
+            combined_message = response_str + "\n" + error_message
+            UDPServerSocket.sendto(combined_message.encode('utf-8'), client_address)
 
         elif int(Y) == 2:
             response, error_list = handle_set_primitiva(parsed_data,matriz,mib,client_ip,client_port,v,x)
-            if not error_list:
-                UDPServerSocket.sendto(response.encode('utf-8'), client_address)
-            else:
-                error_message = "\n".join(error_list)
-                UDPServerSocket.sendto(error_message.encode('utf-8'), client_address)
+            error_message = "\n".join(error_list) if error_list else "[O erros]"
+            combined_message = response + "\n" + error_message
+            UDPServerSocket.sendto(combined_message.encode('utf-8'), client_address)
         
         print(f"Thread para cliente {client_address} encerrada.")
 
@@ -358,7 +331,6 @@ def main():
     StartUDPServer(port,ip,matriz,mib,v,x)  
     uptime = GetTime(start_timestamp) 
     print("O servidor demorou: ", uptime)
-
 
 if __name__ == "__main__":
     main()
