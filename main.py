@@ -275,13 +275,9 @@ def handle_client(data,client_address,matriz,mib,v,x,UDPServerSocket):
 
        #acede ás posições dos dados
         S = parsed_data[0]
-        print(S)
         NS = str(parsed_data[1])
-        print(NS)
         Q=str(parsed_data[2])
-        print(Q)
         Y = str(parsed_data[3])
-        print(Y)
 
         #remove as chaves sempre antes de efetuar as primitivas
         remove_expired_keys(mib)
@@ -325,7 +321,6 @@ def main():
     mib = MIB()
     entradas_mib(mib, matriz,k,t,v,x,m)
     start_timestamp = time.time()
-    print("N:",matriz.get_Ncount())
     StartMatrixUpdateThread = threading.Thread(target=StartMatrixUpdate, args=(t,matriz))
     StartMatrixUpdateThread.start()
     StartUDPServer(port,ip,matriz,mib,v,x)  
@@ -334,10 +329,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-       # https://cppsecrets.com/users/110711510497115104971101075756514864103109971051084699111109/Python-UDP-Server-with-Multiple-Clients.php
-        # codigo não funcional, é só um esboço
-        # c_thread = threading.Thread(target = self.handle_request, args = (data, client_address, matrizZ, MIB))
-        # c_thread.daemon = True
-        # c_thread.start()
-        # a função handle_request terá todo o código para tratar dos pedidos
