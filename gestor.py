@@ -33,10 +33,6 @@ def is_valid_request(P, last_P, V, last_P_timestamp,current_time):
         return True
 
 def process_data():
-    if len(sys.argv) < 5:
-        print("Erro: Número insuficiente de argumentos.")
-        sys.exit(1)
-    
     S = 0  # mecanismo de segurança que é zero
     NS = 0
     Q = 0
@@ -44,7 +40,7 @@ def process_data():
     N = int(sys.argv[2])
     
     W = []
-    for i in range(4, N+4):
+    for i in range(3, N+3):
         pair = sys.argv[i].split(',')
         if len(pair) != 2:
             print("Erro: Formato inválido para o par (I-ID, H ou N).")
