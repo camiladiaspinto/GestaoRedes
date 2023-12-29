@@ -147,15 +147,17 @@ def handle_set_primitiva(parsed_data,matriz,mib,client_ip,client_port,v,x):
 
 #funcao da primitiva get, isto é, procura na mib o iid pedido e envia o iid pedido + as instancias lexicograficamente a seguir
 def handle_get_primitiva(parsed_data,mib):
+    response_final = []
+    error_list_final =[]
     response_str = []
     error_list = []
     response = {}
     NL = str(parsed_data[4])
-    print(NL)
+    print("nl",NL)
     L_data = parsed_data[5].split(';')
         #volta a formar uma tupla de pares 
     L = [(pair.split(',')[0], pair.split(',')[1]) for pair in L_data]
-    print(L)
+    print("l",L)
     for i in range(int(NL)):
         L_i = L[i]
         L_iid = L_i[0]
@@ -188,7 +190,7 @@ def handle_get_primitiva(parsed_data,mib):
                             
                     else: 
                         entry_value = mib.get_entry_by_iid(entry_key)
-                        print(f"Chave: {entry_key}, Lista: {entry_value}")
+                        #print(f"Chave: {entry_key}, Lista: {entry_value}")
                         results[entry_key] = entry_value
 
                 for key, value in results.items():
@@ -196,9 +198,39 @@ def handle_get_primitiva(parsed_data,mib):
                 #print(results)
                 response = {key_id: results[key_id] for key_id in list(results)[:L_lexiograficamente+1]}
                     
-            elif len(L_iid) == 9:  #exemplo 0.3.2.1.0.3 (o ultimo numero é a key id)
-                response = mib.get_entry_by_iid(L_iid)
-                print(response)
+            elif len(L_iid) == 9 or len(L_iid) == 10:  #exemplo 0.3.2.1.0.3 (o ultimo numero é a key id)
+                results = {}
+    
+                # Obter a entrada inicial
+                response_entry = mib.get_entry_by_iid(L_iid)
+
+                # Adicionar à resposta, adaptando conforme necessário
+                results[L_iid] = response_entry
+
+                # Imprimir X entradas seguintes
+                next_entries = mib.get_all_keys()
+
+                # Encontrar a posição da entrada inicial
+                start_index = next_entries.index(L_iid)
+
+                # Iterar sobre as entradas seguintes e incluí-las na resposta
+                for entry_key in next_entries[start_index + 1:start_index + 1 + L_lexiograficamente]:
+                    if entry_key.startswith("0.3.2.1."):
+                        sublist = mib.get_entry_by_iid(entry_key)
+
+                        # Itera sobre as sub-listas e adiciona à resposta
+                        for sub_entry in sublist:
+                            results[sub_entry[0]] = sub_entry[1:]
+
+                    else:
+                        entry_value = mib.get_entry_by_iid(entry_key)
+                        results[entry_key] = entry_value
+
+                for key, value in results.items():
+                    results[key] = bytes_to_hex_string(value)
+
+                response = {key_id: results[key_id] for key_id in list(results)[:L_lexiograficamente + 1]}
+
             elif len(L_iid) == 11 or len(L_iid) == 12:
                 L_iid_aux = L_iid[:-2]
                 #print(L_iid_aux)
@@ -240,8 +272,8 @@ def handle_get_primitiva(parsed_data,mib):
                 if(len(response_str) < L_lexiograficamente):
                     error_list.append("[Erro]: Nao ha chaves suficientes para completar o numero instancias lexicograficamente a seguir.")
                 else:
-                    error_list = ""
-                print("Tamanho:", len(response_str))
+                    error_list = []
+                #print("Tamanho:", len(response_str))
             else:
                 error_list.append("[Erro]: Chave nao existe")
                 response_str = "Sem chaves"
@@ -249,7 +281,15 @@ def handle_get_primitiva(parsed_data,mib):
             error_list.append("[Erro]: Chave nao existe")
             response_str = "Sem chaves"
 
-    return response_str, error_list
+        #for item in response_str:
+        response_final.append(response_str)
+        #response_final.append("\n")
+        if error_list:
+            error_list_final.append(error_list)
+        else:
+            error_list_final.append("[Sem erros]")
+
+    return response_final, error_list_final
 
 #converta bytes em hexadecimal
 def bytes_to_hex_string(byte_data):
@@ -275,13 +315,9 @@ def handle_client(data,client_address,matriz,mib,v,x,UDPServerSocket):
 
        #acede ás posições dos dados
         S = parsed_data[0]
-        print(S)
         NS = str(parsed_data[1])
-        print(NS)
         Q=str(parsed_data[2])
-        print(Q)
         Y = str(parsed_data[3])
-        print(Y)
 
         #remove as chaves sempre antes de efetuar as primitivas
         remove_expired_keys(mib)
@@ -292,13 +328,15 @@ def handle_client(data,client_address,matriz,mib,v,x,UDPServerSocket):
             response = []
             response, error_list = handle_get_primitiva(parsed_data,mib) 
             response_str = json.dumps(response)
-            error_message = "\n".join(error_list) if error_list else "[O erros]"
+            error_message = "\n".join(map(str, error_list)) if error_list else "[Sem erros]"
             combined_message = response_str + "\n" + error_message
             UDPServerSocket.sendto(combined_message.encode('utf-8'), client_address)
+    
 
+        #primitiva set
         elif int(Y) == 2:
             response, error_list = handle_set_primitiva(parsed_data,matriz,mib,client_ip,client_port,v,x)
-            error_message = "\n".join(error_list) if error_list else "[O erros]"
+            error_message = "\n".join(map(str, error_list)) if error_list else "[Sem erros]"
             combined_message = response + "\n" + error_message
             UDPServerSocket.sendto(combined_message.encode('utf-8'), client_address)
         
@@ -325,7 +363,6 @@ def main():
     mib = MIB()
     entradas_mib(mib, matriz,k,t,v,x,m)
     start_timestamp = time.time()
-    print("N:",matriz.get_Ncount())
     StartMatrixUpdateThread = threading.Thread(target=StartMatrixUpdate, args=(t,matriz))
     StartMatrixUpdateThread.start()
     StartUDPServer(port,ip,matriz,mib,v,x)  
@@ -334,10 +371,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-       # https://cppsecrets.com/users/110711510497115104971101075756514864103109971051084699111109/Python-UDP-Server-with-Multiple-Clients.php
-        # codigo não funcional, é só um esboço
-        # c_thread = threading.Thread(target = self.handle_request, args = (data, client_address, matrizZ, MIB))
-        # c_thread.daemon = True
-        # c_thread.start()
-        # a função handle_request terá todo o código para tratar dos pedidos
